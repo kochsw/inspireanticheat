@@ -1,0 +1,5 @@
+name: inspire
+depend: [ ProtocolLib ]
+version: '0.1'
+main: de.inspire.ac.Inspire
+api-version: '1.18'
