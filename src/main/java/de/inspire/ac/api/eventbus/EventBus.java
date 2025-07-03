@@ -2,7 +2,7 @@ package de.inspire.ac.api.eventbus;
 
 import de.inspire.ac.api.eventbus.exceptions.NoLambdaException;
 import de.inspire.ac.api.eventbus.interfaces.Cancellable;
-import de.inspire.ac.api.eventbus.interfaces.EventHandler;
+import de.inspire.ac.api.eventbus.annotations.EventHandler;
 import de.inspire.ac.api.eventbus.listeners.Listener;
 import de.inspire.ac.api.eventbus.listeners.impl.Factory;
 import de.inspire.ac.api.eventbus.listeners.impl.LambdaListener;
@@ -84,28 +84,23 @@ public class EventBus implements de.inspire.ac.api.eventbus.interfaces.EventBus 
 
     private void subscribe(Listener listener, boolean onlyStatic) {
         if (onlyStatic) {
-            if (listener.isStatic())
-                insert(
-                        listenerMap.computeIfAbsent(
-                                listener.getTarget(),
-                                e -> new CopyOnWriteArrayList<>()
-                        ), listener
-                );
-        } else insert(
-                listenerMap.computeIfAbsent(
-                        listener.getTarget(),
-                        e -> new CopyOnWriteArrayList<>()
-                ), listener
-        );
+            if (!listener.isStatic()) return;
+
+            computeIfAbsent(listener);
+        } else computeIfAbsent(listener);
 
     }
 
     private void insert(List<Listener> listeners, Listener listener) {
-        int i = 0;
-        for (; i < listeners.size(); i++)
-            if (listener.getPriority().getPriority() > listeners.get(i).getPriority().getPriority()) break;
+        int priority = listener.getPriority().getPriority();
 
-        listeners.add(i, listener);
+        int available = 0;
+        for (; available < listeners.size(); available++) {
+            Listener l = listeners.get(available);
+            if (priority > l.getPriority().getPriority()) break;
+        }
+
+        listeners.add(available, listener);
     }
 
     @Override
@@ -130,10 +125,20 @@ public class EventBus implements de.inspire.ac.api.eventbus.interfaces.EventBus 
     private void unsubscribe(Listener listener, boolean staticOnly) {
         List<Listener> l = listenerMap.get(listener.getTarget());
 
-        if (l != null) {
-            if (staticOnly) if (listener.isStatic()) l.remove(listener);
-            else l.remove(listener);
-        }
+        if (l == null) return;
+
+        if (staticOnly) {
+            if (!listener.isStatic()) return;
+
+            computeIfAbsent(listener);
+        } else computeIfAbsent(listener);
+    }
+
+    private void computeIfAbsent(Listener listener) {
+        insert(
+                listenerMap.computeIfAbsent(listener.getTarget(), c -> new CopyOnWriteArrayList<>()),
+                listener
+        );
     }
 
     private List<Listener> getListeners(Class<?> clazz, Object object) {
@@ -147,8 +152,11 @@ public class EventBus implements de.inspire.ac.api.eventbus.interfaces.EventBus 
 
         if (object == null) return staticListenerCache.computeIfAbsent(clazz, func);
 
-        for (Object key : listenerCache.keySet())
-            if (key == object) return listenerCache.get(object);
+        for (Object key : listenerCache.keySet()) {
+            if (key != object) continue;
+
+            return listenerCache.get(object);
+        }
 
         List<Listener> listeners = func.apply(object);
         listenerCache.put(object, listeners);
@@ -158,34 +166,38 @@ public class EventBus implements de.inspire.ac.api.eventbus.interfaces.EventBus 
 
     private void getListeners(List<Listener> listeners, Class<?> clazz, Object object) {
         for (Method method : clazz.getDeclaredMethods()) {
-            if (isValid(method)) listeners.add(new LambdaListener(
-                        getLambdaFactory(clazz),
-                        clazz,
-                        object,
-                        method
-                ));
+            if (!isValid(method)) continue;
+
+            listeners.add(new LambdaListener(
+                    getLambdaFactory(clazz),
+                    clazz,
+                    object,
+                    method
+            ));
         }
 
-        if (clazz.getSuperclass() != null)
-            getListeners(listeners, clazz.getSuperclass(), object);
+        if (clazz.getSuperclass() == null) return;
+
+        getListeners(listeners, clazz.getSuperclass(), object);
     }
 
     private boolean isValid(Method method) {
-        if (!method.isAnnotationPresent(EventHandler.class)) return false;
-        if (method.getReturnType() != void.class) return false;
-        if (method.getParameterCount() != 1) return false;
+        if (!method.isAnnotationPresent(EventHandler.class) ||
+                method.getReturnType() != void.class ||
+                method.getParameterCount() != 1) return false;
+
         return !method.getParameters()[0].getType().isPrimitive();
     }
 
     private Factory getLambdaFactory(Class<?> clazz) {
         synchronized (lambdaFactoryInfos) {
-            for (LambdaFactoryInfo info : lambdaFactoryInfos)
-                if (clazz.getName().startsWith(info.packagePrefix))
-                    return info.factory;
+            for (LambdaFactoryInfo info : lambdaFactoryInfos) {
+                if (clazz.getName().startsWith(info.packagePrefix)) return info.factory;
+            }
         }
 
         throw new NoLambdaException(clazz);
     }
 
-    private record LambdaFactoryInfo(String packagePrefix, Factory factory) {}
+    private record LambdaFactoryInfo(String packagePrefix, Factory factory) { }
 }

@@ -1,4 +1,4 @@
-package de.inspire.ac.api.eventbus.interfaces;
+package de.inspire.ac.api.eventbus.annotations;
 
 import de.inspire.ac.api.eventbus.listeners.EventPriority;
 

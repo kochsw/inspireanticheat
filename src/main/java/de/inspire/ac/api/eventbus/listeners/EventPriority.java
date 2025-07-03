@@ -12,6 +12,7 @@ public enum EventPriority {
     LOWEST(-200);
 
     private final int priority;
+
     EventPriority(int priority) {
         this.priority = priority;
     }

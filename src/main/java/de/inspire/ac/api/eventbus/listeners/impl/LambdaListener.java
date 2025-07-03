@@ -1,7 +1,7 @@
 package de.inspire.ac.api.eventbus.listeners.impl;
 
 import de.inspire.ac.api.eventbus.exceptions.LambdaException;
-import de.inspire.ac.api.eventbus.interfaces.EventHandler;
+import de.inspire.ac.api.eventbus.annotations.EventHandler;
 import de.inspire.ac.api.eventbus.listeners.EventPriority;
 import de.inspire.ac.api.eventbus.listeners.Listener;
 
@@ -50,12 +50,9 @@ public class LambdaListener implements Listener {
                 invokedType = MethodType.methodType(Consumer.class, clazz);
             }
 
-
-
-            // TODO: Translte
-            // LambdaMetafactory гораздо быстрее Reflection API.
-            // LambdaMetafactory создает инстанс функционального интерфейса (Consumer) с прямой ссылкой на метод (invokedynamic).
-            // Это почти эквивалентно по скорости обычному вызову.
+            // LambdaMetafactory гораздо быстрее старой реализации (на Reflection API).
+            // Создает инстанс функционального интерфейса (Consumer) с прямой ссылкой на метод
+            // Это почти эквивалентно по скорости обычному вызову
             MethodHandle lambdaFactory = LambdaMetafactory.metafactory(
                     lookup,
                     "accept",

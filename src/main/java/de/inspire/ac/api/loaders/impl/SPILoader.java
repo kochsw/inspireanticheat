@@ -13,6 +13,10 @@ public class SPILoader<T> implements Loader<T> {
         loader = ServiceLoader.load(clazz);
     }
 
+    public SPILoader(Class<T> clazz, ClassLoader classLoader) {
+        loader = ServiceLoader.load(clazz, classLoader);
+    }
+
     @Override
     public List<T> load() {
         return loader.stream().map(ServiceLoader.Provider::get).toList();

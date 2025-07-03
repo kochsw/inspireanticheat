@@ -17,9 +17,14 @@ repositories {
         url = "https://oss.sonatype.org/content/groups/public/"
     }
     maven { url "https://repo.dmulloy2.net/repository/public/" }
+
+    maven { url = uri("https://repo.codemc.io/repository/maven-releases/") }
+
+    maven { url = uri("https://repo.codemc.io/repository/maven-snapshots/") }
 }
 
 dependencies {
+    implementation("org.apache.logging.log4j:log4j-slf4j2-impl:2.24.3")
     compileOnly("org.spigotmc:spigot-api:1.18.2-R0.1-SNAPSHOT")
     compileOnly 'com.comphenix.protocol:ProtocolLib:5.1.0'
     implementation("org.apache.logging.log4j:log4j-slf4j2-impl:2.24.3")
@@ -30,11 +35,36 @@ dependencies {
 
     testCompileOnly("org.projectlombok:lombok:1.18.38")
     testAnnotationProcessor("org.projectlombok:lombok:1.18.38")
+
+    implementation("com.github.retrooper:packetevents-spigot:2.8.0")
 }
 
 tasks {
     runServer {
         minecraftVersion("1.18")
+    }
+}
+
+tasks.register('buildAndRunServer') {
+    group = "server"
+    description = "Builds the plugin and runs the server via run.bat"
+
+    dependsOn 'build'
+
+    doLast {
+        def batFile = file("run.bat")
+        if (!batFile.exists()) {
+            throw new GradleException("run.bat not found!")
+        }
+
+        println "Launching server..."
+        if (System.properties['os.name'].toLowerCase().contains('windows')) {
+            exec {
+                commandLine 'cmd', '/c', batFile.absolutePath
+            }
+        } else {
+            throw new GradleException("This task is intended for Windows (run.bat).")
+        }
     }
 }
 
